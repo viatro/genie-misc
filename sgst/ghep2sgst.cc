@@ -135,6 +135,7 @@ void ConvertToSGST(void) {
   double  brPyl         = 0;      // Final state primary lepton py @ LAB
   double  brPzl         = 0;      // Final state primary lepton pz @ LAB
   double  brPl          = 0;      // Final state primary lepton p  @ LAB
+  double  brKinEl       = 0;      // Final state primary lepton kin.energy @ LAB
   double  brCosthl      = 0;      // Final state primary lepton cos(theta) wrt to neutrino direction
   int     brNf          = 0;      // Nu. of final state particles in hadronic system
   int     brPdgf  [kNPmax];       // Pdg code of k^th final state particle in hadronic system
@@ -143,6 +144,7 @@ void ConvertToSGST(void) {
   double  brPyf   [kNPmax];       // Py         of k^th final state particle in hadronic system @ LAB
   double  brPzf   [kNPmax];       // Pz         of k^th final state particle in hadronic system @ LAB
   double  brPf    [kNPmax];       // P          of k^th final state particle in hadronic system @ LAB
+  double  brKinEf [kNPmax];       // Kin.energy of k^th final state particle in hadronic system @ LAB
   double  brCosthf[kNPmax];       // cos(theta) of k^th final state particle in hadronic system @ LAB wrt to neutrino direction
   int     brNi          = 0;      // Nu. of particles in 'primary' hadronic system (before intranuclear rescattering)
   int     brPdgi[kNPmax];         // Pdg code of k^th particle in 'primary' hadronic system 
@@ -167,68 +169,70 @@ void ConvertToSGST(void) {
 
   // Create tree branches
   //
-  s_tree->Branch("iev",           &brIev,           "iev/I"         );
-  s_tree->Branch("neu",           &brNeutrino,      "neu/I"         );
-  s_tree->Branch("fspl",          &brFSPrimLept,    "fspl/I"        );
-  s_tree->Branch("tgt",           &brTarget,        "tgt/I"         );
-  s_tree->Branch("Z",             &brTargetZ,       "Z/I"           );
-  s_tree->Branch("A",             &brTargetA,       "A/I"           );
-  s_tree->Branch("hitnuc",        &brHitNuc,        "hitnuc/I"      );
-  s_tree->Branch("hitqrk",        &brHitQrk,        "hitqrk/I"      );
-  s_tree->Branch("resid",         &brResId,         "resid/I"       );
-  s_tree->Branch("proc_info",     &brProcInfo                       );
-  s_tree->Branch("scattering",    &brScatteringType                 );
-  s_tree->Branch("interaction",   &brInteractionType                );
-  s_tree->Branch("sea",           &brFromSea,       "sea/O"         );
-  s_tree->Branch("xsec",          &brXSec,          "xsec/D"        );
-  s_tree->Branch("dxsec",         &brDXSec,         "dxsec/D"       );
-  s_tree->Branch("prob",          &brProb,          "prob/D"        );
-  s_tree->Branch("wght",          &brWeight,        "wght/D"        );
-  s_tree->Branch("xs",            &brKineXs,        "xs/D"          );
-  s_tree->Branch("ys",            &brKineYs,        "ys/D"          );
-  s_tree->Branch("ts",            &brKineTs,        "ts/D"          );
-  s_tree->Branch("Q2s",           &brKineQ2s,       "Q2s/D"         );
-  s_tree->Branch("Ws",            &brKineWs,        "Ws/D"          );
-  s_tree->Branch("x",             &brKineX,         "x/D"           );
-  s_tree->Branch("y",             &brKineY,         "y/D"           );
-  s_tree->Branch("t",             &brKineT,         "t/D"           );
-  s_tree->Branch("Q2",            &brKineQ2,        "Q2/D"          );
-  s_tree->Branch("W",             &brKineW,         "W/D"           );
-  s_tree->Branch("EvRF",          &brEvRF,          "EvRF/D"        );
-  s_tree->Branch("Ev",            &brEv,            "Ev/D"          );
-  s_tree->Branch("pxv",           &brPxv,           "pxv/D"         );
-  s_tree->Branch("pyv",           &brPyv,           "pyv/D"         );
-  s_tree->Branch("pzv",           &brPzv,           "pzv/D"         );
-  s_tree->Branch("En",            &brEn,            "En/D"          );
-  s_tree->Branch("pxn",           &brPxn,           "pxn/D"         );
-  s_tree->Branch("pyn",           &brPyn,           "pyn/D"         );
-  s_tree->Branch("pzn",           &brPzn,           "pzn/D"         );
-  s_tree->Branch("El",            &brEl,            "El/D"          );
-  s_tree->Branch("pxl",           &brPxl,           "pxl/D"         );
-  s_tree->Branch("pyl",           &brPyl,           "pyl/D"         );
-  s_tree->Branch("pzl",           &brPzl,           "pzl/D"         );
-  s_tree->Branch("pl",            &brPl,            "pl/D"          );
-  s_tree->Branch("costhl",        &brCosthl,        "costhl/D"      );
-  s_tree->Branch("ni",           &brNi,             "ni/I"          );
-  s_tree->Branch("pdgi",          brPdgi,           "pdgi[ni]/I"    );
-  s_tree->Branch("resc",          brResc,           "resc[ni]/I"    );
-  s_tree->Branch("Ei",            brEi,             "Ei[ni]/D"      );
-  s_tree->Branch("pxi",           brPxi,            "pxi[ni]/D"     );
-  s_tree->Branch("pyi",           brPyi,            "pyi[ni]/D"     );
-  s_tree->Branch("pzi",           brPzi,            "pzi[ni]/D"     );
-  s_tree->Branch("nf",           &brNf,             "nf/I"          );
-  s_tree->Branch("pdgf",          brPdgf,           "pdgf[nf]/I "   );
-  s_tree->Branch("Ef",            brEf,             "Ef[nf]/D"      );
-  s_tree->Branch("pxf",           brPxf,            "pxf[nf]/D"     );
-  s_tree->Branch("pyf",           brPyf,            "pyf[nf]/D"     );
-  s_tree->Branch("pzf",           brPzf,            "pzf[nf]/D"     );
-  s_tree->Branch("pf",            brPf,             "pf[nf]/D"      );
-  s_tree->Branch("costhf",        brCosthf,         "costhf[nf]/D"  );
-  s_tree->Branch("vtxx",         &brVtxX,           "vtxx/D"        );
-  s_tree->Branch("vtxy",         &brVtxY,           "vtxy/D"        );
-  s_tree->Branch("vtxz",         &brVtxZ,           "vtxz/D"        );
-  s_tree->Branch("vtxt",         &brVtxT,           "vtxt/D"        );
-  s_tree->Branch("sumKEf",       &brSumKEf,         "sumKEf/D"      );
+  s_tree->Branch("iev",          &brIev,           "iev/I"         );
+  s_tree->Branch("neu",          &brNeutrino,      "neu/I"         );
+  s_tree->Branch("fspl",         &brFSPrimLept,    "fspl/I"        );
+  s_tree->Branch("tgt",          &brTarget,        "tgt/I"         );
+  s_tree->Branch("Z",            &brTargetZ,       "Z/I"           );
+  s_tree->Branch("A",            &brTargetA,       "A/I"           );
+  s_tree->Branch("hitnuc",       &brHitNuc,        "hitnuc/I"      );
+  s_tree->Branch("hitqrk",       &brHitQrk,        "hitqrk/I"      );
+  s_tree->Branch("resid",        &brResId,         "resid/I"       );
+  s_tree->Branch("proc_info",    &brProcInfo                       );
+  s_tree->Branch("scattering",   &brScatteringType                 );
+  s_tree->Branch("interaction",  &brInteractionType                );
+  s_tree->Branch("sea",          &brFromSea,       "sea/O"         );
+  s_tree->Branch("xsec",         &brXSec,          "xsec/D"        );
+  s_tree->Branch("dxsec",        &brDXSec,         "dxsec/D"       );
+  s_tree->Branch("prob",         &brProb,          "prob/D"        );
+  s_tree->Branch("wght",         &brWeight,        "wght/D"        );
+  s_tree->Branch("xs",           &brKineXs,        "xs/D"          );
+  s_tree->Branch("ys",           &brKineYs,        "ys/D"          );
+  s_tree->Branch("ts",           &brKineTs,        "ts/D"          );
+  s_tree->Branch("Q2s",          &brKineQ2s,       "Q2s/D"         );
+  s_tree->Branch("Ws",           &brKineWs,        "Ws/D"          );
+  s_tree->Branch("x",            &brKineX,         "x/D"           );
+  s_tree->Branch("y",            &brKineY,         "y/D"           );
+  s_tree->Branch("t",            &brKineT,         "t/D"           );
+  s_tree->Branch("Q2",           &brKineQ2,        "Q2/D"          );
+  s_tree->Branch("W",            &brKineW,         "W/D"           );
+  s_tree->Branch("EvRF",         &brEvRF,          "EvRF/D"        );
+  s_tree->Branch("Ev",           &brEv,            "Ev/D"          );
+  s_tree->Branch("pxv",          &brPxv,           "pxv/D"         );
+  s_tree->Branch("pyv",          &brPyv,           "pyv/D"         );
+  s_tree->Branch("pzv",          &brPzv,           "pzv/D"         );
+  s_tree->Branch("En",           &brEn,            "En/D"          );
+  s_tree->Branch("pxn",          &brPxn,           "pxn/D"         );
+  s_tree->Branch("pyn",          &brPyn,           "pyn/D"         );
+  s_tree->Branch("pzn",          &brPzn,           "pzn/D"         );
+  s_tree->Branch("El",           &brEl,            "El/D"          );
+  s_tree->Branch("pxl",          &brPxl,           "pxl/D"         );
+  s_tree->Branch("pyl",          &brPyl,           "pyl/D"         );
+  s_tree->Branch("pzl",          &brPzl,           "pzl/D"         );
+  s_tree->Branch("pl",           &brPl,            "pl/D"          );
+  s_tree->Branch("KEl",          &brKinEl,         "KEl/D"         );
+  s_tree->Branch("costhl",       &brCosthl,        "costhl/D"      );
+  s_tree->Branch("ni",           &brNi,            "ni/I"          );
+  s_tree->Branch("pdgi",          brPdgi,          "pdgi[ni]/I"    );
+  s_tree->Branch("resc",          brResc,          "resc[ni]/I"    );
+  s_tree->Branch("Ei",            brEi,            "Ei[ni]/D"      );
+  s_tree->Branch("pxi",           brPxi,           "pxi[ni]/D"     );
+  s_tree->Branch("pyi",           brPyi,           "pyi[ni]/D"     );
+  s_tree->Branch("pzi",           brPzi,           "pzi[ni]/D"     );
+  s_tree->Branch("nf",           &brNf,            "nf/I"          );
+  s_tree->Branch("pdgf",          brPdgf,          "pdgf[nf]/I "   );
+  s_tree->Branch("Ef",            brEf,            "Ef[nf]/D"      );
+  s_tree->Branch("pxf",           brPxf,           "pxf[nf]/D"     );
+  s_tree->Branch("pyf",           brPyf,           "pyf[nf]/D"     );
+  s_tree->Branch("pzf",           brPzf,           "pzf[nf]/D"     );
+  s_tree->Branch("pf",            brPf,            "pf[nf]/D"      );
+  s_tree->Branch("KEf",           brKinEf,         "KEf[nf]/D"     );
+  s_tree->Branch("costhf",        brCosthf,        "costhf[nf]/D"  );
+  s_tree->Branch("vtxx",         &brVtxX,          "vtxx/D"        );
+  s_tree->Branch("vtxy",         &brVtxY,          "vtxy/D"        );
+  s_tree->Branch("vtxz",         &brVtxZ,          "vtxz/D"        );
+  s_tree->Branch("vtxt",         &brVtxT,          "vtxt/D"        );
+  s_tree->Branch("sumKEf",       &brSumKEf,        "sumKEf/D"      );
 
   // Open the ROOT file and get the TTree & its header
   TFile fin(gOptInpFileName.c_str(),"READ");
@@ -295,6 +299,7 @@ void ConvertToSGST(void) {
          brPyf    [j] =  0;     
          brPzf    [j] =  0;     
          brPf     [j] =  0;     
+         brKinEf  [j] =  0;
          brCosthf [j] =  0;     
     }
 
@@ -580,7 +585,7 @@ void ConvertToSGST(void) {
     }
 
     // Final state (visible) hadronic system
-    brSumKEf     = fspl->KinE();
+    brKinEl = brSumKEf     = fspl->KinE();
 
     brNf = final_had_syst.size();
     for(int j=0; j<brNf; j++) {
@@ -603,6 +608,7 @@ void ConvertToSGST(void) {
         brPyf   [j] = hpy;
         brPzf   [j] = hpz;
         brPf    [j] = hp;
+        brKinEf [j] = hKE;
         brCosthf[j] = hcth;
 
         brSumKEf += hKE;
