@@ -153,6 +153,14 @@ void ConvertToSGST(void) {
   double  brPxi [kNPmax];         // Px       of k^th particle in 'primary' hadronic system @ LAB
   double  brPyi [kNPmax];         // Py       of k^th particle in 'primary' hadronic system @ LAB
   double  brPzi [kNPmax];         // Pz       of k^th particle in 'primary' hadronic system @ LAB
+  int     brPdghb       = 0;      // Nuclear remnant PDG code
+  double  brEhb         = 0;      // Nuclear remnant energy @ LAB
+  double  brPxhb        = 0;      // Nuclear remnant px @ LAB
+  double  brPyhb        = 0;      // Nuclear remnant py @ LAB
+  double  brPzhb        = 0;      // Nuclear remnant pz @ LAB
+  double  brPhb         = 0;      // Nuclear remnant p  @ LAB
+  double  brKinEhb      = 0;      // Nuclear remnant kin.energy @ LAB
+  double  brMhb         = 0;      // Nuclear remnant mass
   double  brVtxX;                 // Vertex x in detector coord system (SI)
   double  brVtxY;                 // Vertex y in detector coord system (SI)
   double  brVtxZ;                 // Vertex z in detector coord system (SI)
@@ -228,6 +236,14 @@ void ConvertToSGST(void) {
   s_tree->Branch("pf",            brPf,            "pf[nf]/D"      );
   s_tree->Branch("KEf",           brKinEf,         "KEf[nf]/D"     );
   s_tree->Branch("costhf",        brCosthf,        "costhf[nf]/D"  );
+  s_tree->Branch("pdghb",        &brPdghb,         "pdghb/I"       );
+  s_tree->Branch("Ehb",          &brEhb,           "Ehb/D"         );
+  s_tree->Branch("pxhb",         &brPxhb,          "pxhb/D"        );
+  s_tree->Branch("pyhb",         &brPyhb,          "pyhb/D"        );
+  s_tree->Branch("pzhb",         &brPzhb,          "pzhb/D"        );
+  s_tree->Branch("phb",          &brPhb,           "phb/D"         );
+  s_tree->Branch("KEhb",         &brKinEhb,        "KEhb/D"        );
+  s_tree->Branch("mhb",          &brMhb,           "mhb/D"         );
   s_tree->Branch("vtxx",         &brVtxX,          "vtxx/D"        );
   s_tree->Branch("vtxy",         &brVtxY,          "vtxy/D"        );
   s_tree->Branch("vtxz",         &brVtxZ,          "vtxz/D"        );
@@ -345,9 +361,9 @@ void ConvertToSGST(void) {
     bool is_imdanh  = proc_info.IsIMDAnnihilation();
     bool is_singlek = proc_info.IsSingleKaon();    
     bool is_nuel    = proc_info.IsNuElectronElastic();
-    bool is_em      = proc_info.IsEM();
-    bool is_weakcc  = proc_info.IsWeakCC();
-    bool is_weaknc  = proc_info.IsWeakNC();
+    //bool is_em      = proc_info.IsEM();
+    //bool is_weakcc  = proc_info.IsWeakCC();
+    //bool is_weaknc  = proc_info.IsWeakNC();
     bool is_mec     = proc_info.IsMEC();
 
     if(!hitnucl) { assert(is_coh || is_imd || is_imdanh || is_nuel); }
@@ -361,7 +377,7 @@ void ConvertToSGST(void) {
     int resid = (is_res) ? EResonance(xcls.Resonance()) : -99;
 
     // (qel or dis) charm production?
-    bool charm = xcls.IsCharmEvent();
+    //bool charm = xcls.IsCharmEvent();
 
     double xsec   = (1E+38/units::cm2) * event.XSec();
     double dxsec  = (1E+38/units::cm2) * event.DiffXSec();
@@ -428,6 +444,7 @@ void ConvertToSGST(void) {
     //
     TObjArrayIter piter(&event);
     GHepParticle * p = 0;
+    GHepParticle * hadr_blob = 0;
     int ip=-1;
 
     //
@@ -438,32 +455,34 @@ void ConvertToSGST(void) {
     LOG("gntpc", pDEBUG) << "Extracting final state hadronic system";
 
     vector<int> final_had_syst;
-    while( (p = (GHepParticle *) piter.Next()) && study_hadsyst)
-    {
+    while ( (p = (GHepParticle *) piter.Next()) && study_hadsyst) {
         ip++;
         // don't count final state lepton as part hadronic system 
         //if(!is_coh && event.Particle(ip)->FirstMother()==0) continue;
-        if(event.Particle(ip)->FirstMother()==0) continue;
-        if(pdg::IsPseudoParticle(p->Pdg())) continue;
+        if (event.Particle(ip)->FirstMother()==0) continue;
         int pdgc = p->Pdg();
         int ist  = p->Status();
-        if(ist==kIStStableFinalState) {
-            if (pdgc == kPdgGamma || pdgc == kPdgElectron || pdgc == kPdgPositron)  {
-               int igmom = p->FirstMother();
-               if(igmom!=-1) {
-               // only count e+'s e-'s or gammas not from decay of pi0
-               if(event.Particle(igmom)->Pdg() != kPdgPi0) { final_had_syst.push_back(ip); }
-               }
-            } else {
-               final_had_syst.push_back(ip);
-            }
+        if (pdg::IsPseudoParticle(pdgc)) {
+            if (ist == kIStFinalStateNuclearRemnant) hadr_blob = p;
+            continue;
+        }
+        if (ist==kIStStableFinalState) {
+            /*if (pdgc == kPdgGamma || pdgc == kPdgElectron || pdgc == kPdgPositron)  {
+                int igmom = p->FirstMother();
+                if(igmom!=-1) {
+                    // only count e+'s e-'s or gammas not from decay of pi0
+                    if(event.Particle(igmom)->Pdg() != kPdgPi0) { final_had_syst.push_back(ip); }
+                }
+            } else {*/
+                final_had_syst.push_back(ip);
+            //}
         }
         // now add pi0's that were decayed as short lived particles
         else if(pdgc == kPdgPi0){
     int ifd = p->FirstDaughter();
     int fd_pdgc = event.Particle(ifd)->Pdg();
     // just require that first daughter is one of gamma, e+ or e-  
-    if(fd_pdgc == kPdgGamma || fd_pdgc == kPdgElectron || fd_pdgc == kPdgPositron){
+    if (fd_pdgc == kPdgGamma || fd_pdgc == kPdgElectron || fd_pdgc == kPdgPositron) {
         final_had_syst.push_back(ip);
     }
         }
@@ -491,34 +510,34 @@ void ConvertToSGST(void) {
     if(study_hadsyst) {
         // if coherent or free nucleon target set primary states equal to final states
         if(!pdg::IsIon(target->Pdg()) || (is_coh)) {
-         vector<int>::const_iterator hiter = final_had_syst.begin();
-         for( ; hiter != final_had_syst.end(); ++hiter) {
-             prim_had_syst.push_back(*hiter);
-         }
+            vector<int>::const_iterator hiter = final_had_syst.begin();
+            for( ; hiter != final_had_syst.end(); ++hiter) {
+                prim_had_syst.push_back(*hiter);
+            }
         } 
         // otherwise loop over all particles and store indices of those which are hadrons
         // created within the nucleus
         else {
-    while( (p = (GHepParticle *) piter_prim.Next()) ){
-        ip++;      
-        int ist_comp  = p->Status();
-        if(ist_comp==kIStHadronInTheNucleus) {
-        prim_had_syst.push_back(ip); 
-        }
-    }//particle-loop   
-    //
-    // also include gammas from nuclear de-excitations (appearing in the daughter list of the 
-    // hit nucleus, earlier than the primary hadronic system extracted above)
-    for(int i = target->FirstDaughter(); i <= target->LastDaughter(); i++) {
-        if(i<0) continue;
-        if(event.Particle(i)->Status()==kIStStableFinalState) { prim_had_syst.push_back(i); }
-    }      
+            while ( (p = (GHepParticle *) piter_prim.Next()) ) {
+                ip++;      
+                int ist_comp  = p->Status();
+                if(ist_comp==kIStHadronInTheNucleus) {
+                    prim_had_syst.push_back(ip); 
+                }
+            }//particle-loop   
+            //
+            // also include gammas from nuclear de-excitations (appearing in the daughter list of the 
+            // hit nucleus, earlier than the primary hadronic system extracted above)
+            for(int i = target->FirstDaughter(); i <= target->LastDaughter(); i++) {
+                if(i<0) continue;
+                if(event.Particle(i)->Status()==kIStStableFinalState) { prim_had_syst.push_back(i); }
+            }      
         }//freenuc?
     }//study_hadsystem?
     
     if( count(prim_had_syst.begin(), prim_had_syst.end(), -1) > 0) {
         mcrec->Clear();
-    continue;
+        continue;
     }
 
     //
@@ -599,7 +618,7 @@ void ConvertToSGST(void) {
         double hpy  = p->Py();     
         double hpz  = p->Pz();     
         double hp   = TMath::Sqrt(hpx*hpx + hpy*hpy + hpz*hpz);
-        double hm   = p->Mass();     
+        //double hm   = p->Mass();     
         double hcth = TMath::Cos( p->P4()->Vect().Angle(k1.Vect()) );
 
         brPdgf  [j] = hpdg;
@@ -616,6 +635,26 @@ void ConvertToSGST(void) {
         LOG("gntpc", pINFO) 
         << "Counting in f/s system from hadronic vtx: idx = " << final_had_syst[j]
         << " -> " << p->Name();
+    }
+    
+    brPdghb    = 0;
+    brEhb      = 0;
+    brKinEhb   = 0;
+    brMhb      = 0;
+    brPxhb     = 0;
+    brPyhb     = 0;
+    brPzhb     = 0;
+    brPhb      = 0;
+    
+    if (hadr_blob) {
+        brPdghb   = hadr_blob->Pdg();     
+        brEhb     = hadr_blob->Energy();     
+        brKinEhb  = hadr_blob->KinE();     
+        brMhb     = hadr_blob->Mass();
+        brPxhb    = hadr_blob->Px();     
+        brPyhb    = hadr_blob->Py();     
+        brPzhb    = hadr_blob->Pz();     
+        brPhb     = TMath::Sqrt(brPxhb*brPxhb + brPyhb*brPyhb + brPzhb*brPzhb);
     }
 
     brVtxX = vtx->X();   

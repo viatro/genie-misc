@@ -13,9 +13,8 @@ TGT = ghep2sgst
 
 all: $(TGT)
 
-ghep2sgst: FORCE 
-	$(CXX) $(CXXFLAGS) -c $@.cc $(INCLUDES)
-	$(LD) $(LDFLAGS) $@.o $(LIBRARIES) -o ./$@
+ghep2sgst: FORCE
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(LIBRARIES) $@.cc -o ./$@
 
 clean: FORCE
 	$(RM) *.o ./ghep2sgst
