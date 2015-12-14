@@ -61,27 +61,9 @@ void   PrintSyntax               (void);
 string DefaultOutputFile         (void);
 bool   CheckRootFilename         (string filename);
 
-//format enum
-typedef enum EGNtpcFmt {
-  kConvFmt_undef = 0,
-  kConvFmt_gst,
-  kConvFmt_sgst,
-  kConvFmt_gxml,
-  kConvFmt_ghep_mock_data,
-  kConvFmt_rootracker,
-  kConvFmt_rootracker_mock_data,
-  kConvFmt_t2k_rootracker,
-  kConvFmt_numi_rootracker,
-  kConvFmt_t2k_tracker,
-  kConvFmt_nuance_tracker,
-  kConvFmt_ghad,
-  kConvFmt_ginuke
-} GNtpcFmt_t;
-
 //input options (from command line arguments):
 string     gOptInpFileName;         ///< input file name
 string     gOptOutFileName;         ///< output file name
-GNtpcFmt_t gOptOutFileFormat;       ///< output file format id
 int        gOptVersion;             ///< output file format version
 Long64_t   gOptN;                   ///< number of events to process
 bool       gOptCopyJobMeta = false; ///< copy MC job metadata (gconfig, genv TFolders)
@@ -110,9 +92,6 @@ int main(int argc, char ** argv) {
 }
 //____________________________________________________________________________________
 void ConvertToSGST(void) {
-  // Some constants
-  const double e_h = 1.3; // typical e/h ratio used for computing mean `calorimetric response'
-
   // Define branch variables
   //
   int     brIev         = 0;      // Event number 
@@ -128,6 +107,9 @@ void ConvertToSGST(void) {
   TString brProcInfo    = "";
   TString brScatteringType = "";
   TString brInteractionType = "";
+  double  brXSec        = 0;      // Cross section for selected event (1E-38 cm2)
+  double  brDXSec       = 0;      // Cross section for selected event kinematics (1E-38 cm2 /{K^n})
+  double  brProb        = 0;      // Probability for that event (given cross section, path lengths, etc)
   double  brWeight      = 0;      // Event weight
   double  brKineXs      = 0;      // Bjorken x as was generated during kinematical selection; takes fermi momentum / off-shellness into account
   double  brKineYs      = 0;      // Inelasticity y as was generated during kinematical selection; takes fermi momentum / off-shellness into account
@@ -198,6 +180,9 @@ void ConvertToSGST(void) {
   s_tree->Branch("scattering",    &brScatteringType                 );
   s_tree->Branch("interaction",   &brInteractionType                );
   s_tree->Branch("sea",           &brFromSea,       "sea/O"         );
+  s_tree->Branch("xsec",          &brXSec,          "xsec/D"        );
+  s_tree->Branch("dxsec",         &brDXSec,         "dxsec/D"       );
+  s_tree->Branch("prob",          &brProb,          "prob/D"        );
   s_tree->Branch("wght",          &brWeight,        "wght/D"        );
   s_tree->Branch("xs",            &brKineXs,        "xs/D"          );
   s_tree->Branch("ys",            &brKineYs,        "ys/D"          );
@@ -223,7 +208,7 @@ void ConvertToSGST(void) {
   s_tree->Branch("pyl",           &brPyl,           "pyl/D"         );
   s_tree->Branch("pzl",           &brPzl,           "pzl/D"         );
   s_tree->Branch("pl",            &brPl,            "pl/D"          );
-  s_tree->Branch("cthl",          &brCosthl,        "cthl/D"        );
+  s_tree->Branch("costhl",        &brCosthl,        "costhl/D"      );
   s_tree->Branch("ni",           &brNi,             "ni/I"          );
   s_tree->Branch("pdgi",          brPdgi,           "pdgi[ni]/I"    );
   s_tree->Branch("resc",          brResc,           "resc[ni]/I"    );
@@ -238,7 +223,7 @@ void ConvertToSGST(void) {
   s_tree->Branch("pyf",           brPyf,            "pyf[nf]/D"     );
   s_tree->Branch("pzf",           brPzf,            "pzf[nf]/D"     );
   s_tree->Branch("pf",            brPf,             "pf[nf]/D"      );
-  s_tree->Branch("cthf",          brCosthf,         "cthf[nf]/D"    );
+  s_tree->Branch("costhf",        brCosthf,         "costhf[nf]/D"  );
   s_tree->Branch("vtxx",         &brVtxX,           "vtxx/D"        );
   s_tree->Branch("vtxy",         &brVtxY,           "vtxy/D"        );
   s_tree->Branch("vtxz",         &brVtxZ,           "vtxz/D"        );
@@ -373,6 +358,9 @@ void ConvertToSGST(void) {
     // (qel or dis) charm production?
     bool charm = xcls.IsCharmEvent();
 
+    double xsec   = (1E+38/units::cm2) * event.XSec();
+    double dxsec  = (1E+38/units::cm2) * event.DiffXSec();
+    double prob   = event.Probability();
     // Get event weight
     double weight = event.Weight();
 
@@ -544,6 +532,9 @@ void ConvertToSGST(void) {
     brProcInfo   = proc_info.AsString();
     brScatteringType = proc_info.ScatteringTypeAsString();
     brInteractionType = proc_info.InteractionTypeAsString();
+    brXSec       = xsec;
+    brDXSec      = dxsec;
+    brProb       = prob;
     brWeight     = weight;      
     brKineXs     = xs;      
     brKineYs     = ys;      
@@ -679,9 +670,6 @@ void GetCommandLineArgs(int argc, char ** argv)
     gAbortingInErr = true;
     exit(2);
   }
-  
-  // get output file format
-  gOptOutFileFormat = kConvFmt_sgst;
 
   // get output file name 
   if( parser.OptionExists('o') ) {
@@ -729,20 +717,7 @@ void GetCommandLineArgs(int argc, char ** argv)
 string DefaultOutputFile(void)
 {
   // filename extension - depending on file format
-  string ext="";
-  if      (gOptOutFileFormat == kConvFmt_gst                  ) { ext = "gst.root";         }
-  else if (gOptOutFileFormat == kConvFmt_sgst                 ) { ext = "sgst.root";        }
-  else if (gOptOutFileFormat == kConvFmt_gxml                 ) { ext = "gxml";             }
-  else if (gOptOutFileFormat == kConvFmt_ghep_mock_data       ) { ext = "mockd.ghep.root";  }
-  else if (gOptOutFileFormat == kConvFmt_rootracker           ) { ext = "gtrac.root";       }
-  else if (gOptOutFileFormat == kConvFmt_rootracker_mock_data ) { ext = "mockd.gtrac.root"; }
-  else if (gOptOutFileFormat == kConvFmt_t2k_rootracker       ) { ext = "gtrac.root";       }
-  else if (gOptOutFileFormat == kConvFmt_numi_rootracker      ) { ext = "gtrac.root";       }
-  else if (gOptOutFileFormat == kConvFmt_t2k_tracker          ) { ext = "gtrac.dat";        }
-  else if (gOptOutFileFormat == kConvFmt_nuance_tracker       ) { ext = "gtrac_legacy.dat"; }
-  else if (gOptOutFileFormat == kConvFmt_ghad                 ) { ext = "ghad.dat";         }
-  else if (gOptOutFileFormat == kConvFmt_ginuke               ) { ext = "ginuke.root";      }
-
+  string ext = "sgst.root";
   string inpname = gOptInpFileName;
   unsigned int L = inpname.length();
 
