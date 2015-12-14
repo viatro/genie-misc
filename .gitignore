@@ -1,5 +1,4 @@
 *.o
-*.so
-*.a
-*.lib
+*.root
 tally/*Tally
+sgst/ghep2sgst
