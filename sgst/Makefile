@@ -6,7 +6,7 @@ MAKEFILE = Makefile
 #
 include $(GENIE)/src/make/Make.include
 
-GENIE_LIBS  = $(shell $(GENIE)/src/scripts/setup/genie-config --libs)
+GENIE_LIBS  = $(shell $(GENIE)/src/scripts/setup/genie-config --libs) -lEG
 LIBRARIES  := $(GENIE_LIBS) $(LIBRARIES) $(CERN_LIBRARIES)
 
 TGT = ghep2sgst
