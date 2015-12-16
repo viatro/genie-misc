@@ -2,7 +2,7 @@
 
 [[ $# == 1 ]] && ( [ "$1" == "egst" ] || [ "$1" == "gst" ] || [ "$1" == "gtrac" ] ) || ( echo "$0 [egst|gst|gtrac]" && exit )
 
-base_name="$1"
+base_name="$1Tally"
 source_file="$1Tally.cc"
 host_name=`hostname`
 echo $host_name
