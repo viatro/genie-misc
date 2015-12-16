@@ -1,4 +1,4 @@
 *.o
 *.root
 tally/*Tally
-sgst/ghep2sgst
+gntpc/sgst/ghep2sgst
