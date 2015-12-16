@@ -1,3 +1,4 @@
+
 SHELL = /bin/bash
 NAME = all
 MAKEFILE = Makefile
@@ -6,18 +7,25 @@ MAKEFILE = Makefile
 #
 include $(GENIE)/src/make/Make.include
 
-GENIE_LIBS  = $(shell $(GENIE)/src/scripts/setup/genie-config --libs) -lEG
+GENIE_LIBS  = $(shell $(GENIE)/src/scripts/setup/genie-config --libs)
 LIBRARIES  := $(GENIE_LIBS) $(LIBRARIES) $(CERN_LIBRARIES)
 
 TGT = ghep2groot
 
 all: $(TGT)
 
-ghep2sgst: FORCE
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(LIBRARIES) $@.cc -o ./$@
+ghep2groot: FORCE 
+	$(CXX) $(CXXFLAGS) -c $@.cc $(INCLUDES)
+	$(LD) $(LDFLAGS) $@.o $(LIBRARIES) -o $@
+
+purge: FORCE
+	$(RM) *.o *~ core 
 
 clean: FORCE
-	$(RM) *.o ./ghep2groot
+	$(RM) *.o *~ core ./$(TGT)
+
+distclean: FORCE
+	$(RM) ./ghep2groot
 
 FORCE:
 

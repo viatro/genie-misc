@@ -1,33 +1,76 @@
 #include <iostream>
 
-#include "TString.h"
-#include "TObjString.h"
-#include "TFile.h"
-#include "TTree.h"
-#include "TClonesArray.h"
-#include "TParticle.h"
-#include "TVector3.h"
-#include "TLorentzVector.h"
+#include <TSystem.h>
+#include <TFile.h>
+#include <TTree.h>
+#include <TFolder.h>
+#include <TBits.h>
+#include <TString.h>
+#include <TObjString.h>
+#include <TMath.h>
+#include <TClonesArray.h>
+#include <TParticle.h>
+#include <TDatabasePDG.h>
+#include <TVector3.h>
+#include <TLorentzVector.h>
 
-//#include "Conventions/GBuild.h"
+#include "Conventions/GBuild.h"
+#include "Conventions/Constants.h"
 #include "Conventions/Units.h"
 #include "EVGCore/EventRecord.h"
 #include "GHEP/GHepStatus.h"
 #include "GHEP/GHepParticle.h"
-//#include "Ntuple/NtpMCFormat.h"
+#include "GHEP/GHepUtils.h"
+#include "Ntuple/NtpMCFormat.h"
+#include "Ntuple/NtpMCTreeHeader.h"
 #include "Ntuple/NtpMCEventRecord.h"
+#include "Ntuple/NtpWriter.h"
+#include "Numerical/RandomGen.h"
+#include "Messenger/Messenger.h"
+#include "PDG/PDGCodes.h"
 #include "PDG/PDGUtils.h"
-//#include "Utils/AppInit.h"
+#include "PDG/PDGLibrary.h"
+#include "Utils/AppInit.h"
+#include "Utils/RunOpt.h"
+#include "Utils/CmdLnArgParser.h"
+#include "Utils/SystemUtils.h"
 
 using std::cerr;
 using std::cout;
 using std::endl;
 
 using namespace genie;
+using namespace genie::constants;
 
 const int kNPmax = 250;
 
-void Convert(TString InpFileName, TString OutFileName) {
+void Convert(const TString&, const TString&);
+void GetCommandLineArgs (int argc, char ** argv);
+
+int main(int argc, char ** argv) {
+    
+    GetCommandLineArgs(argc, argv);
+    
+    utils::app_init::MesgThresholds(RunOpt::Instance()->MesgThresholdFiles());
+    //utils::app_init::RandGen(gOptRanSeed);
+    
+    GHepRecord::SetPrintLevel(RunOpt::Instance()->EventRecordPrintLevel());
+    
+    if ( (argc < 2) || (argc > 3) || (TString(argv[1]) == TString("-h")) || (TString(argv[1]) == TString("--help")) ) {
+        cout << "USAGE:\t" << argv[0] << " INPUT_FILE.root [OUTPUT_FILE.root]" << endl;
+    } else if (argc == 3) {
+        Convert(argv[1], argv[2]);
+    } else {
+        TString s = ((TObjString*)(TString(argv[1]).Tokenize("/")->Last()))->GetName();
+        TString old_ext = "ghep.root";
+        TString new_ext = "groot.root";
+        s.Replace(s.Length() - old_ext.Length(), old_ext.Length(), new_ext);
+        Convert(argv[1], s);
+    }
+    return 0;
+}
+
+void Convert(const TString& InpFileName, const TString& OutFileName) {
     int    nParticles    =  0;   // Nu. of primary particles
     double Weight        =  0;   // Event weight
     double Prob          =  0;   // Probability for that event (given cross section, path lengths, etc)
@@ -117,16 +160,12 @@ void Convert(TString InpFileName, TString OutFileName) {
     fout.Close();
 }
 
-int main(int argc, char ** argv) {
-    if ( (argc < 2) || (argc > 3) || (TString(argv[1]) == TString("-h")) || (TString(argv[1]) == TString("--help")) ) {
-        cout << "USAGE:" << endl;
-        cout << "gntp2root INPUT_FILE.root [OUTPUT_FILE.root]" << endl;
-    } else if (argc == 3) {
-        Convert(argv[1], argv[2]);
-    } else {
-        TString s = ((TObjString*)(TString(argv[1]).Tokenize("/")->Last()))->GetName();
-        s.Replace(s.Length() - TString("ghep.root").Length(),TString("ghep.root").Length(),"toG4.root");
-        Convert(argv[1], s);
-    }
-    return 0;
+void GetCommandLineArgs(int argc, char ** argv)
+{
+  // Common run options. 
+  RunOpt::Instance()->ReadFromCommandLine(argc,argv);
+
+  // Parse run options for this app
+  CmdLnArgParser parser(argc,argv);
 }
+//
