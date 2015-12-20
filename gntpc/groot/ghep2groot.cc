@@ -28,6 +28,9 @@ using std::endl;
 using namespace genie;
 
 void Convert(const TString&, const TString&);
+int BaryonNumber(int);
+
+TDatabasePDG *pdg_db = new TDatabasePDG();
 
 int main(int argc, char ** argv) {
     if ( (argc < 2) || (argc > 3) || (TString(argv[1]) == TString("-h")) || (TString(argv[1]) == TString("--help")) ) {
@@ -54,12 +57,12 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
     double brProb          =  0;   // Probability for that event (given cross section, path lengths, etc)
     double brWeight        =  0;   // Event weight
         
-    TClonesArray * parr = new TClonesArray("TParticle", 25);
+    TClonesArray* parr = new TClonesArray("TParticle", 25);
     TClonesArray &ar = *parr;
     TLorentzVector *vertex = new TLorentzVector(0,0,0,0);
     
     TFile fout(OutFileName.Data(),"recreate");
-    TTree * T = new TTree("T", "GENIE to be G4 tracked");
+    TTree* T = new TTree("T", "GENIE to be G4 tracked");
     
     T->Branch("iev",    &brIev,             "iev/I"     );
     T->Branch("n",      &brNParticles,      "n/I"       );
@@ -74,15 +77,15 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
     
     // Open the ROOT file and get the TTree & its header
     TFile fin(InpFileName.Data(),"READ");
-    TTree * ghep_tree = 0;
-    ghep_tree = dynamic_cast <TTree *>           ( fin.Get("gtree")  );
+    TTree* ghep_tree = 0;
+    ghep_tree = dynamic_cast<TTree *>( fin.Get("gtree") );
     if (!ghep_tree) {
         cerr << "Null input GHEP event tree" << endl;
         return;
     }
     
     // Get the MC record
-    NtpMCEventRecord *mcrec = 0;
+    NtpMCEventRecord* mcrec = 0;
     ghep_tree->SetBranchAddress("gmcrec", &mcrec);
     if (!mcrec) {
         cerr << "Null MC record" << endl;
@@ -97,7 +100,7 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
         brIev = iev;
         
         //NtpMCRecHeader rec_header = mcrec->hdr;
-        EventRecord &  event      = *(mcrec->event);
+        EventRecord& event = *(mcrec->event);
         
         if (event.IsUnphysical()) {
             cerr << "Event " << iev << "is unphysical. Skipping" << endl; 
@@ -105,7 +108,7 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
             continue;
         }
         
-        const ProcessInfo &  proc_info  = event.Summary()->ProcInfo();
+        const ProcessInfo& proc_info = event.Summary()->ProcInfo();
         brScattering = proc_info.ScatteringTypeAsString();
         brInteraction = proc_info.InteractionTypeAsString();
         
@@ -120,22 +123,59 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
         
         //Particles loop
         int ip = 0;
-        GHepParticle *p = 0;
+        int ihb = 0;
+        GHepParticle* p = 0;
+        int charge = 0;
+        int baryon_number = 0;
+        int pdgc = 0;
+        int ist = -1;
         TIter event_iter(&event);
         while ( (p = dynamic_cast<GHepParticle *>(event_iter.Next())) ) {
             if (!p) continue;
-            if (pdg::IsPseudoParticle(p->Pdg()) && p->Status() != kIStFinalStateNuclearRemnant )    continue;
+            pdgc = p->Pdg();
+            ist = p->Status();
+            if (pdg::IsPseudoParticle(pdgc)) {
+                if (ist != kIStFinalStateNuclearRemnant) {
+                    continue; // NucBindE corresponds to Fermi-gas model removal energy
+                } else {
+                    /*TParticle* particle =*/ new(ar[ip]) TParticle(pdgc, ist, p->FirstMother(), p->LastMother(), p->FirstDaughter(), p->LastDaughter(), *p->P4(), *p->X4() );
+                    ihb = ip;
+                    ip++;
+                    continue;
+                }
+            }
             //p[GeV],x[fm]
             //p->Px(), p->Py(), p->Pz(), p->E(), p->Vx(), p->Vy(), p->Vz(), p->Vt() );
-            TParticle* particle = new(ar[ip]) TParticle(p->Pdg(), p->Status(), p->FirstMother(),p->LastMother(),p->FirstDaughter(),p->LastDaughter(), *p->P4(), *p->X4() );  
+            TParticle* particle = new(ar[ip]) TParticle(pdgc, ist, p->FirstMother(), p->LastMother(), p->FirstDaughter(), p->LastDaughter(), *p->P4(), *p->X4() );  
             if (p->PolzIsSet()) {
                 p->GetPolarization(polz);
                 particle->SetPolarisation(polz);
             }
-            ip++;            
+            if (ist == kIStInitialState) {
+                if (pdg::IsIon(pdgc)) {
+                    charge += pdg::IonPdgCodeToZ(pdgc);
+                    baryon_number += pdg::IonPdgCodeToA(pdgc);
+                } else {
+                    charge += pdg_db->GetParticle(pdgc)->Charge()/3;
+                    baryon_number += BaryonNumber(pdgc);
+                }
+            } else if (ist == kIStStableFinalState) {
+                if (pdg::IsIon(pdgc)) {
+                    charge -= pdg::IonPdgCodeToZ(pdgc);
+                    baryon_number -= pdg::IonPdgCodeToA(pdgc);
+                } else {
+                    charge -= pdg_db->GetParticle(pdgc)->Charge()/3;
+                    baryon_number -= BaryonNumber(pdgc);
+                }
+            }
+            ip++;
         }
         brNParticles = ip;
-        //parr->Compress();
+        if (ihb > 0) {
+            dynamic_cast<TParticle *>(parr->AddrAt(ihb))->SetPdgCode(pdg::IonPdgCode(baryon_number, charge));
+            if (charge > baryon_number || charge < 0) cout << pdg::IonPdgCode(baryon_number, charge) << endl;
+        }
+        parr->Compress();
         T->Fill();
         mcrec->Clear();
         parr->Delete();//Clear();
@@ -145,4 +185,17 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
     
     fout.Write();
     fout.Close();
+}
+
+int BaryonNumber(int pdg) {
+    if (abs(pdg) < 1000000000) {
+        TParticlePDG *pPDG = pdg_db->GetParticle(pdg);
+        if (!pPDG) return 0;
+        if ( ! TString(pPDG->ParticleClass()).EqualTo("Baryon") ) return 0;
+        if (pdg > 0) return  1;
+        if (pdg < 0) return -1;
+        return 0;
+    }
+    if (abs(pdg) >= 2000000000) return 0;
+    else return (pdg / 10) % 1000;
 }
