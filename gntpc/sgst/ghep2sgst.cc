@@ -667,7 +667,7 @@ void ConvertToSGST(void) {
                     charge += pdg::IonPdgCodeToZ(pdgc);
                     baryon_number += pdg::IonPdgCodeToA(pdgc);
                 } else {
-                   charge += pdg_db->GetParticle(pdgc)->Charge();
+                   charge += pdg_db->GetParticle(pdgc)->Charge()/3;
                    baryon_number += BaryonNumber(pdgc);
                 }
             } else if (ist == kIStStableFinalState) {
@@ -675,7 +675,7 @@ void ConvertToSGST(void) {
                     charge -= pdg::IonPdgCodeToZ(pdgc);
                     baryon_number -= pdg::IonPdgCodeToA(pdgc);
                 } else {
-                   charge -= pdg_db->GetParticle(pdgc)->Charge();
+                   charge -= pdg_db->GetParticle(pdgc)->Charge()/3;
                    baryon_number -= BaryonNumber(pdgc);
                 }
             }
