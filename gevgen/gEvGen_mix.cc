@@ -93,8 +93,8 @@ int main(int argc, char ** argv) {
     flux->SetBeamSpot         (bspot);
     flux->SetTransverseRadius (-1);
     
-    
-    for (map<int,TH1D*>::iterator it = gOptFluxHst.begin(); it != gOptFluxHst.end(); ++it) {
+    map<int,TH1D*>::iterator it = gOptFluxHst.begin();
+    for (; it != gOptFluxHst.end(); ++it) {
         int    pdg_code = it->first;
         TH1D * spectrum = it->second;
         flux->AddEnergySpectrum(pdg_code, spectrum);
@@ -151,7 +151,8 @@ int main(int argc, char ** argv) {
     delete geom_driver;
     delete mcj_driver;
     
-    for(map<int,TH1D*>::iterator it = gOptFluxHst.begin(); it != gOptFluxHst.end(); ++it) {
+    /*map<int,TH1D*>::iterator */it = gOptFluxHst.begin();
+    for(; it != gOptFluxHst.end(); ++it) {
         TH1D * spectrum = it->second;
         if(spectrum) delete spectrum;
     }
@@ -198,18 +199,6 @@ void GetCommandLineArgs(int argc, char ** argv) {
         gOptRunNu = kDefOptRunNu;
     }
     
-    if ( parser.OptionExists('f') ) {
-        LOG("gevgen_mix", pINFO) << "Getting input flux";
-        ParseFluxHst(parser.ArgAsString('f'));
-    } else {
-        LOG("gevgen_mix", pFATAL) << "No flux info was specified - Exiting";
-        PrintSyntax();
-        exit(1);
-    }
-    
-    // generate weighted events option (only relevant if using a flux)
-    gOptWeighted = parser.OptionExists('w');
-    
     // neutrino energy
     if( parser.OptionExists('e') ) {
         LOG("gevgen_mix", pINFO) << "Reading neutrino energy";
@@ -230,6 +219,18 @@ void GetCommandLineArgs(int argc, char ** argv) {
         PrintSyntax();
         exit(1);
     }
+    
+    if ( parser.OptionExists('f') ) {
+        LOG("gevgen_mix", pINFO) << "Getting input flux";
+        ParseFluxHst(parser.ArgAsString('f'));
+    } else {
+        LOG("gevgen_mix", pFATAL) << "No flux info was specified - Exiting";
+        PrintSyntax();
+        exit(1);
+    }
+    
+    // generate weighted events option (only relevant if using a flux)
+    gOptWeighted = parser.OptionExists('w');
     
     // target mix (their PDG codes with their corresponding weights)
     if( parser.OptionExists('t') ) {
@@ -294,7 +295,7 @@ void GetCommandLineArgs(int argc, char ** argv) {
     for (titer = gOptTgtMix.begin(); titer != gOptTgtMix.end(); ++titer) {
         int    tgtpdgc = titer->first;
         double wgt     = titer->second;
-        tgtinfo << " >> " << tgtpdgc << " (weight fraction = " << wgt << ")";
+        tgtinfo << tgtpdgc << " (weight fraction = " << wgt << ") | ";
     }
     
     ostringstream fluxinfo;
@@ -305,7 +306,7 @@ void GetCommandLineArgs(int argc, char ** argv) {
           TParticlePDG * p = pdglib->Find(pdg_code);
           if(p) {
             string name = p->GetName();
-            fluxinfo << "(" << name << ") -> " << spectrum->GetName() << " / ";
+            fluxinfo << "(" << name << ") -> " << spectrum->GetName() << " | ";
           }//p?
     }
     
@@ -345,9 +346,8 @@ void ParseFluxHst(string flux) {
         string nutype_and_histo = fluxv[inu];
         string::size_type open_bracket  = nutype_and_histo.find("[");
         string::size_type close_bracket = nutype_and_histo.find("]");
-        if (open_bracket ==string::npos || close_bracket==string::npos) {
-            LOG("gevgen_mix", pFATAL) 
-            << "You made an error in specifying the flux histograms"; 
+        if (open_bracket == string::npos || close_bracket==string::npos) {
+            LOG("gevgen_mix", pFATAL) << "You made an error in specifying the flux histograms"; 
             PrintSyntax();
             exit(1);
         }
@@ -358,14 +358,17 @@ void ParseFluxHst(string flux) {
         string nutype = nutype_and_histo.substr(ibeg,iend-ibeg);
         string histo  = nutype_and_histo.substr(jbeg,jend-jbeg);
         // access specified histogram from the input root file
-        TH1D * ihst = (TH1D*) flux_file.Get(histo.c_str()); 
+        TH1 * ihst = (TH1*) flux_file.Get(histo.c_str()); 
         if (!ihst) {
             LOG("gevgen_mix", pFATAL) << "Can not find histogram: " << histo << " in flux file: " << fluxfile;
             PrintSyntax();
             exit(1);
         }
+        
         // create a local copy of the input histogram
-        TH1D * spectrum = new TH1D( histo.c_str(), histo.c_str(), ihst->GetNbinsX(),  
+        TString origname = ihst->GetName();
+        TString tmpname; tmpname.Form("%s_", origname.Data());
+        TH1D * spectrum = new TH1D( tmpname.Data(), ihst->GetTitle(), ihst->GetNbinsX(),  
                                     ihst->GetXaxis()->GetXmin(), ihst->GetXaxis()->GetXmax());
         spectrum->SetDirectory(0);
         for (int ibin = 1; ibin <= ihst->GetNbinsX(); ++ibin) {
@@ -374,6 +377,11 @@ void ParseFluxHst(string flux) {
                 LOG("gevgen_mix", pDEBUG) << "adding => " << ibin << ": " << ihst->GetBinContent(ibin);
             }
         }
+        // get rid of original
+        delete ihst;
+        // rename copy
+        spectrum->SetName(origname.Data());
+        
         // convert neutrino name -> pdg code
         int pdg = atoi(nutype.c_str());
         if (!pdg::IsNeutrino(pdg) && !pdg::IsAntiNeutrino(pdg)) {
