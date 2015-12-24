@@ -18,7 +18,7 @@ all: $(TGT)
 #
 gEvGen_mix: FORCE
 	$(CXX) $(CXXFLAGS) -c $@.cc $(INCLUDES)
-	$(LD) $(LDFLAGS) $@.o $(LIBRARIES) -o $(GENIE_BIN_PATH)/gevgen_mix 
+	$(LD) $(LDFLAGS) $@.o $(LIBRARIES) -o ./gevgen_mix 
 
 #################### CLEANING
 
@@ -27,10 +27,10 @@ purge: FORCE
 
 clean: FORCE
 	$(RM) *.o *~ core
-	$(RM) $(GENIE_BIN_PATH)/gevgen_mix
+	$(RM) ./gevgen_mix
 
 distclean: FORCE
-	$(RM) $(GENIE_BIN_INSTALLATION_PATH)/gevgen_mix
+	$(RM) ./gevgen_mix
 
 FORCE:
 
