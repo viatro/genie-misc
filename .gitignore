@@ -1,6 +1,7 @@
 *.o
 *.root
 *.status
+*/nohup.out
 tally/*Tally
 gntpc/sgst/ghep2sgst
 gntpc/groot/ghep2groot

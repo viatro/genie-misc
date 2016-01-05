@@ -2,7 +2,7 @@
 #include <set>
 #include <iostream>
 #include <algorithm>
-class stream_demultiplexer {
+class stream_demultiplexer : public std::ostream {
     private:
         //typedef std::vector<std::ostream*> str_cont;
         typedef std::set<std::ostream*> str_cont;

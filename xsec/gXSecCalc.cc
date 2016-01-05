@@ -41,7 +41,10 @@ ofstream      gOptOutputFile         ;
 stream_demultiplexer sout;
 
 int main(int argc, char ** argv) {
+    
     sout.add_stream(cout);
+    sout.precision(15);
+    
     // Parse command line arguments
     GetCommandLineArgs(argc,argv);
     
@@ -78,17 +81,17 @@ int main(int argc, char ** argv) {
         sout << "#Target = " << tgtpdg;
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
             nupdg  = *nuiter;
-            sout << TString::Format("\t%-17s", TString::Format("Neutrino = %d", nupdg).Data());
+            sout << left << "\t" << setw(21) << TString::Format("Neutrino = %d", nupdg).Data();
         }
         sout << endl;
-        sout << TString::Format("%-20s", "#Energy(neutrino) [MeV]");
+        sout << "#Energy(neutrino) [MeV]";
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
-            sout << TString::Format("\t%-17s", "xsec_total [cm^2]");
+            sout << left << "\t" << setw(21) << "xsec_total [cm^2]";
         }
         sout << endl;
         
         Enu = 0;
-        sout << TString::Format("%20.15f", Enu/units::MeV);
+        sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
             nupdg  = *nuiter;
             sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
@@ -97,7 +100,7 @@ int main(int argc, char ** argv) {
         
         for (int p = -4000; p < 0; ++p) {
             Enu = TMath::Power(10, double(p)/1000);
-            sout << TString::Format("%20.15f", Enu/units::MeV);
+            sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
             for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
                 nupdg  = *nuiter;
                 sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
@@ -106,7 +109,7 @@ int main(int argc, char ** argv) {
         }
         
         Enu = 1;
-        sout << TString::Format("%20.15f", Enu/units::MeV);
+        sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
             nupdg  = *nuiter;
             sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
