@@ -14,7 +14,7 @@ else
 fi
 
 echo "Compiling $source_file"
-$CXX -Wall -O3 -std=c++11 \
+$CXX -Wall -O3 -std=c++14 \
 `root-config --cflags --glibs` \
 -lEG \
 -o $base_name \

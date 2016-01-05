@@ -3,8 +3,9 @@
 //#include "TTree.h"
 #include "TChain.h"
 #include "TString.h"
-#include "TParticle.h"
+//#include "TParticle.h"
 #include "TParticlePDG.h"
+#include "TDatabasePDG.h"
 
 #include <vector>
 #include <algorithm>
@@ -33,8 +34,8 @@ TString elementName[] = {"",
 
 TString PdgName(Int_t pdg) {
     if (pdg < 1000000000 && pdg > -1000000000) {
-        if (!TParticle(pdg,0,0,0,0,0,0,0,0,0,0,0,0,0).GetPDG()) return TString::Itoa(pdg, 10);
-        return TString(TParticle(pdg,0,0,0,0,0,0,0,0,0,0,0,0,0).GetName());
+        if (!TDatabasePDG::Instance()->GetParticle(pdg)) return TString::Itoa(pdg, 10);
+        return TDatabasePDG::Instance()->GetParticle(pdg)->GetName();
     }
     else if (pdg == 2000000002) return "HadrBlob";
     else if (pdg <= -1000000000) return TString("!!! ANTI-") + PdgName(-pdg) +  TString(" !!!");
@@ -53,18 +54,16 @@ TString PdgName(Int_t pdg) {
 
 Double_t PdgCharge(Int_t pdg) {
     if (pdg < 1000000000 && pdg > -1000000000) {
-        TParticlePDG *pPDG = TParticle(pdg,0,0,0,0,0,0,0,0,0,0,0,0,0).GetPDG();
-        if (!pPDG) return 0.;
-        return pPDG->Charge()/3;
+        if (!TDatabasePDG::Instance()->GetParticle(pdg)) return 0.;
+        return TDatabasePDG::Instance()->GetParticle(pdg)->Charge()/3;
     }
     else return ((pdg / 10000) % 1000);
 }
 
 TString PdgClass(Int_t pdg) {
     if (pdg < 1000000000) {
-        TParticlePDG *pPDG = TParticle(pdg,0,0,0,0,0,0,0,0,0,0,0,0,0).GetPDG();
-        if (!pPDG) return "NotInDB";
-        return pPDG->ParticleClass();
+        if (!TDatabasePDG::Instance()->GetParticle(pdg)) return "NotInDB";
+        return TDatabasePDG::Instance()->GetParticle(pdg)->ParticleClass();
     }
     if (pdg >= 2000000000) return "GeniePseudoParticle";
     else return "Ion";
@@ -72,9 +71,8 @@ TString PdgClass(Int_t pdg) {
 
 Int_t PdgBaryonNumber(Int_t pdg) {
     if (pdg < 1000000000) {
-        TParticlePDG *pPDG = TParticle(pdg,0,0,0,0,0,0,0,0,0,0,0,0,0).GetPDG();
-        if (!pPDG) return 0;
-        if ( ! TString(pPDG->ParticleClass()).EqualTo("Baryon") ) return 0;
+        if (!TDatabasePDG::Instance()->GetParticle(pdg)) return 0;
+        if ( ! TString(TDatabasePDG::Instance()->GetParticle(pdg)->ParticleClass()).EqualTo("Baryon") ) return 0;
         if (pdg > 0) return  1;
         if (pdg < 0) return -1;
         return 0;
@@ -179,8 +177,8 @@ TallyReactionsMap_t GetTallyReactionsMap(TChain* gst) {
     gst->SetBranchAddress("nf",   &nf  );
     gst->SetBranchAddress("pdgf", pdgf );
     
-    Double_t charge;
-    Int_t baryon_number;
+    Double_t charge = 0;
+    Int_t baryon_number = 0;
     
     for (Long64_t i = 0; i < nentries; ++i) {
         
@@ -213,7 +211,7 @@ cout << "\r";// << endl;
 }
 
 void PrintSortedTally(TallyReactionsMap_t& tally) {
-    multimap<UInt_t, Reaction_t,greater<UInt_t>> sortedtally;
+    multimap<UInt_t, Reaction_t, greater<UInt_t>> sortedtally;
     UInt_t n = 0;
     for (auto p: tally) sortedtally.insert(pair<UInt_t, Reaction_t>(p.second,p.first));
     for (auto p: sortedtally) n += p.first;
@@ -234,7 +232,7 @@ void PrintSortedTally(TallyReactionsMap_t& tally) {
     for (auto s: sortedtally) {
         auto reaction = s.second;
         fp_counter[reaction.fspl] += s.first;
-        fp_counter[reaction.nuclear_remnant] += s.first;
+        if (reaction.nuclear_remnant != 0) fp_counter[reaction.nuclear_remnant] += s.first;
         for (auto p : reaction.fParticles) {
             fp_counter[p.first] += p.second * s.first;
         }
@@ -251,9 +249,8 @@ void gstTally(vector<TString>& filenames) {
     
     //TFile* file = TFile::Open(filename);
     //TTree *gst = (TTree*)file->Get("gst");
-    TChain *gst = new TChain("gst");
+    TChain* gst = new TChain("gst");
     for (TString & filename : filenames) gst->Add(filename);
-    
     TallyReactionsMap_t tally = GetTallyReactionsMap(gst);
     PrintSortedTally(tally);
     
