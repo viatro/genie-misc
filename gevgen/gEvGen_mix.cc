@@ -8,10 +8,14 @@
 #include <TFile.h>
 #include <TH1D.h>
 #include <TMath.h>
+#include <TClonesArray.h>
 
 #include "Conventions/XmlParserStatus.h"
 #include "Conventions/GBuild.h"
 //#include "Conventions/Controls.h"
+#include "GHEP/GHepStatus.h"
+#include "GHEP/GHepParticle.h"
+#include "GHEP/GHepUtils.h"
 #include "EVGCore/EventRecord.h"
 #include "EVGDrivers/GFluxI.h"
 #include "EVGDrivers/GEVGDriver.h"
@@ -45,14 +49,15 @@ using std::ostringstream;
 
 using namespace genie;
 
+int  BaryonNumber(int);
 void GetCommandLineArgs (int argc, char ** argv);
 void ParseFluxHst       (string);
 void PrintSyntax        (void);
 
 //Default options (override them using the command line arguments):
-int           kDefOptNevents   = 1000;    // n-events to generate
-NtpMCFormat_t kDefOptNtpFormat = kNFGHEP; // ntuple format
-Long_t        kDefOptRunNu     = 0;       // default run number
+int           kDefOptNevents    = 1000;    // n-events to generate
+NtpMCFormat_t kDefOptNtpFormat  = kNFGHEP; // ntuple format
+Long_t        kDefOptRunNu      = 0;       // default run number
 
 //User-specified options:
 int             gOptNevents;      // n-events to generate
@@ -64,6 +69,9 @@ Long_t          gOptRunNu;        // run number
 bool            gOptWeighted;     // 
 long int        gOptRanSeed;      // random number seed
 string          gOptInpXSecFile;  // cross-section splines
+bool            gOptSkipBroken;
+
+PDGLibrary * pdglib = PDGLibrary::Instance();
 
 int main(int argc, char ** argv) {
     GetCommandLineArgs(argc,argv);
@@ -129,12 +137,49 @@ int main(int argc, char ** argv) {
     int ievent = 0;
     while ( ievent < gOptNevents) {
     
-        LOG("gevgen_mix", pNOTICE) << " *** Generating event............ " << ievent;
+//        LOG("gevgen_mix", pNOTICE) << " *** Generating event............ " << ievent;
     
         // generate a single event for neutrinos coming from the specified flux
         EventRecord * event = mcj_driver->GenerateEvent();
+        
+        if (gOptSkipBroken) {
+            bool hb = false;
+            GHepParticle* p = 0;
+            int charge = 0;
+            int baryon_number = 0;
+            int pdgc = 0;
+            int ist = -1;
+            TIter iter(event);
+            while ( (p = dynamic_cast<GHepParticle *>(iter.Next())) ) {
+                if (!p)  continue;
+                pdgc = p->Pdg();
+                ist = p->Status();
+                if (pdg::IsPseudoParticle(pdgc) && ist == kIStFinalStateNuclearRemnant)  hb = true;
+                if (ist == kIStInitialState) {
+                    if (pdg::IsIon(pdgc)) {
+                        charge += pdg::IonPdgCodeToZ(pdgc);
+                        baryon_number += pdg::IonPdgCodeToA(pdgc);
+                    } else {
+                        charge += TMath::Nint(p->Charge()/3);
+                        baryon_number += BaryonNumber(pdgc);
+                    }
+                } else if (ist == kIStStableFinalState) {
+                    if (pdg::IsIon(pdgc)) {
+                        charge -= pdg::IonPdgCodeToZ(pdgc);
+                        baryon_number -= pdg::IonPdgCodeToA(pdgc);
+                    } else {
+                        charge -= TMath::Nint(p->Charge()/3);
+                        baryon_number -= BaryonNumber(pdgc);
+                    }
+                }
+            }
+            if ( hb  &&  (TMath::Abs(charge) > baryon_number || charge < 0 || baryon_number <= 0 || (charge == 0 && baryon_number > 0) ) ) {
+                delete event;
+                continue;
+            }
+        } 
     
-        LOG("gevgen_mix", pNOTICE) << "Generated Event GHEP Record: " << *event;
+//        LOG("gevgen_mix", pNOTICE) << "Generated Event GHEP Record: " << *event;
     
         // add event at the output ntuple, refresh the mc job monitor & clean-up
         ntpw.AddEventRecord(ievent, event);
@@ -161,6 +206,19 @@ int main(int argc, char ** argv) {
     LOG("gevgen_t2k", pNOTICE) << "Done!";
     
     return 0;
+}
+
+int BaryonNumber(int pdg) {
+    if (abs(pdg) < 1000000000) {
+        TParticlePDG *pPDG = pdglib->Find(pdg);
+        if (!pPDG) return 0;
+        if ( string(pPDG->ParticleClass()).compare("Baryon") != 0 ) return 0;
+        if (pdg > 0) return  1;
+        if (pdg < 0) return -1;
+        return 0;
+    }
+    if (abs(pdg) >= 2000000000) return 0;
+    else return (pdg / 10) % 1000;
 }
 
 void GetCommandLineArgs(int argc, char ** argv) {
@@ -264,6 +322,9 @@ void GetCommandLineArgs(int argc, char ** argv) {
         exit(1);
     }
     
+    // skip broken events?
+    gOptSkipBroken = !parser.OptionExists('b');
+    
     // random number seed
     if( parser.OptionExists("seed") ) {
         LOG("gevgen_mix", pINFO) << "Reading random number seed";
@@ -286,8 +347,6 @@ void GetCommandLineArgs(int argc, char ** argv) {
     // print-out the command line options
     //
     LOG("gevgen_mix", pNOTICE) << "\n" << utils::print::PrintFramedMesg("gevgen job configuration");
-    
-    PDGLibrary * pdglib = PDGLibrary::Instance();
     
     LOG("gevgen_mix", pNOTICE) << "Target code (PDG) & weight fraction (in case of multiple targets): ";
     ostringstream tgtinfo;
@@ -314,6 +373,7 @@ void GetCommandLineArgs(int argc, char ** argv) {
         << "\n - Run number: " << gOptRunNu
         << "\n - Number of events requested: " << gOptNevents
         << "\n - Neutrino energy range: [" << gOptNuEnergyMin << ", " << gOptNuEnergyMax << "] GeV"
+        << "\n - Skip broken events? " << gOptSkipBroken
         << "\n - Generate weighted events? " << gOptWeighted
         << "\n - Random number seed: " << gOptRanSeed
         << "\n - Using cross-section file: " << gOptInpXSecFile
@@ -412,6 +472,7 @@ void PrintSyntax(void) {
         << "\n               -e energy range"
         << "\n               -t target_pdg "
         << "\n               -f flux"
+        << "\n              [-b]"
         << "\n              [-w]"
         << "\n              [--seed random_number_seed]"
         << "\n              [--cross-sections xml_file]"

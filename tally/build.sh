@@ -8,7 +8,7 @@ host_name=`hostname`
 echo $host_name
 
 if [[ "$host_name" == *borexino* ]] ; then
-	CXX="g++5.3.0"; echo $CXX
+	CXX="g++6.2.0 -Wl,-rpath,/storage/gpfs_data/borexino/users/viatro/opt/gcc-6.2.0/lib64"; echo $CXX
 else
 	CXX="g++"; echo $CXX
 fi

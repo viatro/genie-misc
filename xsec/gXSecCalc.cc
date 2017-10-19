@@ -91,16 +91,16 @@ int main(int argc, char ** argv) {
         sout << endl;
         
         Enu = 0;
-        sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
+        sout << right << setw(22) << fixed << setprecision(15) << Enu/units::MeV;
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
             nupdg  = *nuiter;
             sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
         }
         sout << endl;
         
-        for (int p = -4000; p < 0; ++p) {
-            Enu = TMath::Power(10, double(p)/1000);
-            sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
+        for (int p = -4000; p <= 2000; ++p) { //0.1-100 GeV
+            Enu = TMath::Power(10, p/1000.);
+            sout << right << setw(22) << fixed << setprecision(15) << Enu/units::MeV;
             for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
                 nupdg  = *nuiter;
                 sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
@@ -108,13 +108,13 @@ int main(int argc, char ** argv) {
             sout << endl;
         }
         
-        Enu = 1;
-        sout << right << setw(20) << fixed << setprecision(15) << Enu/units::MeV;
+        /*Enu = 100.; //GeV
+        sout << right << setw(22) << fixed << setprecision(15) << Enu/units::MeV;
         for (nuiter = gOptNuPdgCodeList->begin(); nuiter != gOptNuPdgCodeList->end(); ++nuiter) {
             nupdg  = *nuiter;
             sout << TString::Format("\t%17.15E", driver_storage[tgtpdg][nupdg]->XSecSum(TLorentzVector(0, 0, Enu, Enu))/units::cm2);
         }
-        sout << "\n" << endl;
+        sout << "\n" << endl;*/
         
     }
 }
@@ -175,7 +175,7 @@ void GetCommandLineArgs(int argc, char ** argv) {
     else gOptRanSeed = -1; // using default
     
     // input cross-section file
-    if (parser.OptionExists("cross-sections"))  gOptInpXSecFile = parser.ArgAsString("cross-sections");
+    if (parser.OptionExists("input-cross-sections"))  gOptInpXSecFile = parser.ArgAsString("input-cross-sections");
     else gOptInpXSecFile = "";
     
     //
@@ -210,7 +210,7 @@ void PrintSyntax(void) {
         << "   gxscalc -p nupdg -t tgtpdg "
         << " [-n nknots] [-e max_energy] "
         << " [--seed seed_number]"
-        << " [--input-cross-section xml_file]"
+        << " [--input-cross-sections xml_file]"
         << " [--event-generator-list list_name]"
         << " [--message-thresholds xml_file]\n"
         << endl;

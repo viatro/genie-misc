@@ -18,6 +18,7 @@
 #include <TObjString.h>
 #include <TMath.h>
 #include <TDatabasePDG.h>
+
 #include "BaryonResonance/BaryonResonance.h"
 #include "BaryonResonance/BaryonResUtils.h"
 #include "Conventions/GBuild.h"
@@ -483,19 +484,19 @@ void ConvertToSGST(void) {
                 //}
             }
             // now add pi0's that were decayed as short lived particles
-            else if(pdgc == kPdgPi0){
-        int ifd = p->FirstDaughter();
-        int fd_pdgc = event.Particle(ifd)->Pdg();
-        // just require that first daughter is one of gamma, e+ or e-  
-        if (fd_pdgc == kPdgGamma || fd_pdgc == kPdgElectron || fd_pdgc == kPdgPositron) {
-            final_had_syst.push_back(ip);
-        }
+            else if(pdgc == kPdgPi0) {
+                int ifd = p->FirstDaughter();
+                int fd_pdgc = event.Particle(ifd)->Pdg();
+                // just require that first daughter is one of gamma, e+ or e-  
+                if (fd_pdgc == kPdgGamma || fd_pdgc == kPdgElectron || fd_pdgc == kPdgPositron) {
+                    final_had_syst.push_back(ip);
+                }
             }
         }//particle-loop
     
-        if( count(final_had_syst.begin(), final_had_syst.end(), -1) > 0) {
+        if (count(final_had_syst.begin(), final_had_syst.end(), -1) > 0) {
             mcrec->Clear();
-        continue;
+            continue;
         }
     
         //
@@ -667,7 +668,7 @@ void ConvertToSGST(void) {
                     charge += pdg::IonPdgCodeToZ(pdgc);
                     baryon_number += pdg::IonPdgCodeToA(pdgc);
                 } else {
-                   charge += pdg_db->GetParticle(pdgc)->Charge()/3;
+                   charge += TMath::Nint(p->Charge()/3);
                    baryon_number += BaryonNumber(pdgc);
                 }
             } else if (ist == kIStStableFinalState) {
@@ -675,7 +676,7 @@ void ConvertToSGST(void) {
                     charge -= pdg::IonPdgCodeToZ(pdgc);
                     baryon_number -= pdg::IonPdgCodeToA(pdgc);
                 } else {
-                   charge -= pdg_db->GetParticle(pdgc)->Charge()/3;
+                   charge -= TMath::Nint(p->Charge()/3);
                    baryon_number -= BaryonNumber(pdgc);
                 }
             }

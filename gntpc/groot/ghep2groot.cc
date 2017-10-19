@@ -8,6 +8,7 @@
 #include <TDatabasePDG.h>
 #include <TVector3.h>
 #include <TLorentzVector.h>
+#include <TMath.h>
 
 #include "Conventions/Units.h"
 #include "EVGCore/EventRecord.h"
@@ -30,7 +31,7 @@ using namespace genie;
 void Convert(const TString&, const TString&);
 int BaryonNumber(int);
 
-TDatabasePDG *pdg_db = new TDatabasePDG();
+PDGLibrary * pdglib = PDGLibrary::Instance();
 
 int main(int argc, char ** argv) {
     if ( (argc < 2) || (argc > 3) || (TString(argv[1]) == TString("-h")) || (TString(argv[1]) == TString("--help")) ) {
@@ -96,6 +97,9 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
     
     // Event loop
     for(Long64_t iev = 0; iev < ghep_tree->GetEntries(); iev++) {
+        mcrec->Clear();
+        parr->Delete();//Clear();
+        
         ghep_tree->GetEntry(iev);
         brIev = iev;
         
@@ -156,7 +160,7 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
                     charge += pdg::IonPdgCodeToZ(pdgc);
                     baryon_number += pdg::IonPdgCodeToA(pdgc);
                 } else {
-                    charge += pdg_db->GetParticle(pdgc)->Charge()/3;
+                    charge += TMath::Nint(p->Charge()/3);
                     baryon_number += BaryonNumber(pdgc);
                 }
             } else if (ist == kIStStableFinalState) {
@@ -164,7 +168,7 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
                     charge -= pdg::IonPdgCodeToZ(pdgc);
                     baryon_number -= pdg::IonPdgCodeToA(pdgc);
                 } else {
-                    charge -= pdg_db->GetParticle(pdgc)->Charge()/3;
+                    charge -= TMath::Nint(p->Charge()/3);
                     baryon_number -= BaryonNumber(pdgc);
                 }
             }
@@ -172,13 +176,16 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
         }
         brNParticles = ip;
         if (ihb > 0) {
+            if (TMath::Abs(charge) > baryon_number || charge < 0 || baryon_number <= 0) {
+                cout << "Skipping event " << iev << ": HadrBlob with Z=" << charge << ", A=" << baryon_number << ", PDG code " << pdg::IonPdgCode(baryon_number, charge) << endl;
+                continue;
+            }
             dynamic_cast<TParticle *>(parr->AddrAt(ihb))->SetPdgCode(pdg::IonPdgCode(baryon_number, charge));
-            if (charge > baryon_number || charge < 0) cout << pdg::IonPdgCode(baryon_number, charge) << endl;
         }
         parr->Compress();
         T->Fill();
-        mcrec->Clear();
-        parr->Delete();//Clear();
+        //mcrec->Clear();
+        //parr->Delete();//Clear();
     } // event loop
     
     fin.Close();
@@ -189,7 +196,7 @@ void Convert(const TString& InpFileName, const TString& OutFileName) {
 
 int BaryonNumber(int pdg) {
     if (abs(pdg) < 1000000000) {
-        TParticlePDG *pPDG = pdg_db->GetParticle(pdg);
+        TParticlePDG *pPDG = pdglib->Find(pdg);
         if (!pPDG) return 0;
         if ( ! TString(pPDG->ParticleClass()).EqualTo("Baryon") ) return 0;
         if (pdg > 0) return  1;
